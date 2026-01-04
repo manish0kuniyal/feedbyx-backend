@@ -16,18 +16,48 @@ import chatRoute from "./routes/chat.js"
 
 dotenv.config();
 
-// console.log("DEBUG ENV:", {
-//   BASE_URL: process.env.PAYPAL_BASE_URL,
-//   CLIENT_ID: process.env.PAYPAL_CLIENT_ID ? "✅" : "❌",
-//   SECRET: process.env.PAYPAL_SECRET ? "✅" : "❌"
-// });
 
-// import * as Paypal from "./services/paypal.js"
 
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
+    credentials: true,
+  methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if ([
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://dev.feedbyx.com",
+    "https://main.d3jt2wtqx08knj.amplifyapp.com"
+  ].includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  next();
+});
+app.options("*", cors({
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://dev.feedbyx.com",
+    "https://main.d3jt2wtqx08knj.amplifyapp.com"
+  ],
+  credentials: true,
+  methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 const port=5000
 
@@ -51,16 +81,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
-    credentials: true,
-  methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-
 
 app.get('/', (req, res) => {
   res.json({ message: '...Express live ✅ ' });
