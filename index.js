@@ -7,12 +7,12 @@ import feedbackRouter from "./routes/feedback.js";
 import formsRouter from "./routes/form.js";
 import usersRouter from "./routes/user.js";
 import cookieParser from 'cookie-parser';
-import paymentRoutes from  "./routes/payment.js"
+// import paymentRoutes from  "./routes/payment.js"
 import connectDB from "./utils/dbconnect.js"
 
 import dotenv from "dotenv";
 
-import chatRoute from "./routes/chat.js"
+// import chatRoute from "./routes/chat.js"
 
 dotenv.config();
 
@@ -85,8 +85,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/forms", formsRouter);
 app.use("/api/users", usersRouter);
-app.use("/api",chatRoute)
-app.use("/api/payment", paymentRoutes);
+// app.use("/api",chatRoute)
+// app.use("/api/payment", paymentRoutes);
 
 
 
