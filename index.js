@@ -41,33 +41,15 @@ app.use(
   })
 );
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    const origin = req.headers.origin;
-
-    if ([
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "https://dev.feedbyx.com",
-      "https://main.d3jt2wtqx08knj.amplifyapp.com"
-    ].includes(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-    }
-
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
-    );
-
-    return res.sendStatus(204);
-  }
-
+  console.log("---- INCOMING REQUEST ----");
+  console.log("method:", req.method);
+  console.log("url:", req.originalUrl);
+  console.log("origin:", req.headers.origin);
+  console.log("cookies:", req.headers.cookie || "NO COOKIES");
+  console.log("--------------------------");
   next();
 });
+
 
 
 const port=5000

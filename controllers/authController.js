@@ -5,9 +5,12 @@ import User from "../models/user.js";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req, res) => {
+    console.log("✅ /google/token HIT");
+
   const token = req.body?.token;
   if (!token) return res.status(400).json({ message: "Token not provided" });
-
+    console.log("request body:", req.body);
+    console.log("origin:", req.headers.origin);
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
@@ -37,7 +40,6 @@ export const googleLogin = async (req, res) => {
   httpOnly: true,
   secure: true,
   sameSite: "none",
-  domain: ".feedbyx.com", 
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
 
@@ -71,7 +73,6 @@ export const logoutUser = (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-    domain: ".feedbyx.com"
   });
   res.json({ message: "Logged out" });
 };
