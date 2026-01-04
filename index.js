@@ -31,33 +31,35 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  if (req.method === "OPTIONS") {
+    const origin = req.headers.origin;
 
-  if ([
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://dev.feedbyx.com",
-    "https://main.d3jt2wtqx08knj.amplifyapp.com"
-  ].includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    if ([
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://dev.feedbyx.com",
+      "https://main.d3jt2wtqx08knj.amplifyapp.com"
+    ].includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+    );
+
+    return res.sendStatus(204);
   }
 
-  res.setHeader("Access-Control-Allow-Credentials", "true");
   next();
 });
-app.options("*", cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://dev.feedbyx.com",
-    "https://main.d3jt2wtqx08knj.amplifyapp.com"
-  ],
-  credentials: true,
-  methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+
 
 const port=5000
 
