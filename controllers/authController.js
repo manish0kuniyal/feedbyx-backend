@@ -33,12 +33,14 @@ export const googleLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.cookie("token", jwtToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
-    });
+   res.cookie("token", jwtToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  domain: ".feedbyx.com", 
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
+
 
     res.json({ user });
   } catch (err) {
@@ -69,6 +71,7 @@ export const logoutUser = (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
+    domain: ".feedbyx.com"
   });
   res.json({ message: "Logged out" });
 };
