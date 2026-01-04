@@ -16,7 +16,16 @@ import chatRoute from "./routes/chat.js"
 
 dotenv.config();
 
+let dbInitPromise;
 
+function initDB() {
+  if (!dbInitPromise) {
+    dbInitPromise = connectDB();
+  }
+  return dbInitPromise;
+}
+
+initDB();
 
 const app = express();
 
@@ -63,15 +72,15 @@ app.use((req, res, next) => {
 
 const port=5000
 
-app.use(async (req, res, next) => {
-  try {
-      await connectDB();
-    next();
-  } catch (err) {
-    console.error("DB connection failed during request", err);
-    res.status(503).json({ message: "Database unavailable" });
-  }
-});
+// app.use(async (req, res, next) => {
+//   try {
+//       await connectDB();
+//     next();
+//   } catch (err) {
+//     console.error("DB connection failed during request", err);
+//     res.status(503).json({ message: "Database unavailable" });
+//   }
+// });
 
 
 const STAGE = process.env.STAGE || 'prod';
@@ -85,7 +94,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ message: '...Express live ✅ ' });
+  res.json({ message: '...Express live ✅✔ ' });
 });
 
 
