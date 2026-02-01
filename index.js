@@ -31,15 +31,53 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://dev.feedbyx.com",
+  "https://main.d3jt2wtqx08knj.amplifyapp.com",
+  "https://api.feedbyx.com"  // Add this
+];
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-app.use(
-  cors({
-    origin: ["http://localhost:3000","https://api.feedbyx.com", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
-    credentials: true,
-  methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+// Add this error handler BEFORE your 404 handler
+app.use((err, req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.status(err.status || 500).json({ message: err.message });
+});
+// app.use(
+//   cors({
+//     origin: ["http://localhost:3000","https://api.feedbyx.com", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
+//     credentials: true,
+//   methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//   })
+// );
 
 app.use((req, res, next) => {
   console.log("---- INCOMING REQUEST ----");
@@ -77,7 +115,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ message: '...Express live ✅✔🔥 ' });
+  res.json({ message: '...Express live ✔🔥 ' });
 });
 
 
