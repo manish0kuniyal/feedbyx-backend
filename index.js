@@ -1,4 +1,3 @@
-
 import express from 'express'
 import serverless from 'serverless-http'
 import cors from 'cors'
@@ -7,12 +6,8 @@ import feedbackRouter from "./routes/feedback.js";
 import formsRouter from "./routes/form.js";
 import usersRouter from "./routes/user.js";
 import cookieParser from 'cookie-parser';
-// import paymentRoutes from  "./routes/payment.js"
 import connectDB from "./utils/dbconnect.js"
-
 import dotenv from "dotenv";
-
-// import chatRoute from "./routes/chat.js"
 
 dotenv.config();
 
@@ -20,7 +15,10 @@ let dbInitPromise;
 
 function initDB() {
   if (!dbInitPromise) {
-    dbInitPromise = connectDB();
+    dbInitPromise = connectDB().catch(err => {
+      console.error("❌ MongoDB connection failed:", err);
+      // Don't throw - let routes handle DB errors individually
+    });
   }
   return dbInitPromise;
 }
@@ -31,13 +29,15 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:5173",
   "https://dev.feedbyx.com",
   "https://main.d3jt2wtqx08knj.amplifyapp.com",
-  "https://api.feedbyx.com"  // Add this
 ];
+
+// CORS middleware - set headers on ALL responses
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
@@ -61,24 +61,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add this error handler BEFORE your 404 handler
-app.use((err, req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-  }
-  res.status(err.status || 500).json({ message: err.message });
-});
-// app.use(
-//   cors({
-//     origin: ["http://localhost:3000","https://api.feedbyx.com", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
-//     credentials: true,
-//   methods: ["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"],
-//     allowedHeaders: ["Content-Type", "Authorization"],
-//   })
-// );
-
+// Debug logging
 app.use((req, res, next) => {
   console.log("---- INCOMING REQUEST ----");
   console.log("method:", req.method);
@@ -89,21 +72,9 @@ app.use((req, res, next) => {
   next();
 });
 
+const port = 5000;
 
-
-const port=5000
-
-// app.use(async (req, res, next) => {
-//   try {
-//       await connectDB();
-//     next();
-//   } catch (err) {
-//     console.error("DB connection failed during request", err);
-//     res.status(503).json({ message: "Database unavailable" });
-//   }
-// });
-
-
+// Stage handling
 const STAGE = process.env.STAGE || 'prod';
 app.use((req, res, next) => {
   if (req.url === `/${STAGE}`) {
@@ -118,16 +89,11 @@ app.get('/', (req, res) => {
   res.json({ message: '...Express live ✔🔥 ' });
 });
 
-
-
+// Routes
 app.use("/api/auth", authRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/forms", formsRouter);
 app.use("/api/users", usersRouter);
-// app.use("/api",chatRoute)
-// app.use("/api/payment", paymentRoutes);
-
-
 
 app.get('/_debug', (req, res) => {
   res.json({
@@ -139,12 +105,27 @@ app.get('/_debug', (req, res) => {
   });
 });
 
-
-
-app.use((req, res) => {
+// 404 handler
+app.use((req, res, next) => {
   res.status(404).json({
     message: 'Express 404',
     debug: { path: req.path, originalUrl: req.originalUrl, url: req.url, method: req.method }
+  });
+});
+
+// Error handler - MUST BE LAST, after all routes
+app.use((err, req, res, next) => {
+  console.error("Error handler caught:", err);
+  
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  
+  res.status(err.status || 500).json({ 
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
   });
 });
 
