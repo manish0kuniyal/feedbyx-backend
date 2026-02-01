@@ -6,6 +6,9 @@ import {
 } from "../controllers/authController.js";
 
 const router = express.Router();
+router.options("/google/token", (req, res) => {
+  res.sendStatus(204);
+});
 
 router.post("/google/token", googleLogin);
 router.get("/me", getCurrentUser);
