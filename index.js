@@ -30,36 +30,21 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "https://dev.feedbyx.com",
-  "https://main.d3jt2wtqx08knj.amplifyapp.com",
-];
+// const ALLOWED_ORIGINS = [
+//   "http://localhost:3000",
+//   "http://localhost:5173",
+//   "https://dev.feedbyx.com",
+//   "https://main.d3jt2wtqx08knj.amplifyapp.com",
+// ];
 
-// CORS middleware - set headers on ALL responses
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials","true");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    );
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Debug logging
 app.use((req, res, next) => {
