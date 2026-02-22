@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
-import User from "../models/user.js";
+import User from "../../models/user.js";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -36,13 +36,14 @@ export const googleLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-   res.cookie("token", jwtToken, {
+  const isProd = process.env.NODE_ENV === "production";
+
+res.cookie("token", jwtToken, {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
-
 
     res.json({ user });
   } catch (err) {
@@ -69,11 +70,13 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const logoutUser = (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
+ const isProd = process.env.NODE_ENV === "production";
+
+res.clearCookie("token", {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+});
   res.json({ message: "Logged out" });
 };
 

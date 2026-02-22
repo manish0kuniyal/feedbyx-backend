@@ -2,7 +2,13 @@ import express from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
-dotenv.config(); // MUST BE FIRST
+
+import Plan from "../models/plan.js";
+import Subscription from "../models/subscriptions.js";
+import Payment from "../models/payment.js";
+
+dotenv.config();
+
 const router = express.Router();
 
 const razorpay = new Razorpay({
@@ -10,34 +16,75 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-/**
- * CREATE ORDER
- */
+router.get("/seed", async (req, res) => {
+  const existing = await Plan.find();
+  if (existing.length > 0) {
+    return res.json({ message: "Plans already exist", plans: existing });
+  }
+
+  const newPlan = await Plan.create({
+    name: "Pro",
+    monthlyPrice: 5,
+    yearlyPrice: 50,
+    features: {
+      analyticsLocation: true,
+      aiEnabled: true
+    }
+  });
+
+  res.json(newPlan);
+});
+
+
+/* ===============================
+   CREATE ORDER
+=============================== */
+
 router.post("/create-order", async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { planId, billingCycle, userId } = req.body;
 
-    if (!amount) {
-      return res.status(400).json({ error: "Amount is required" });
+    if (!planId || !billingCycle || !userId) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
+    const selectedPlan = await Plan.findById(planId);
+    if (!selectedPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    let amount =
+      billingCycle === "monthly"
+        ? selectedPlan.monthlyPrice
+        : selectedPlan.yearlyPrice;
+
     const order = await razorpay.orders.create({
-      amount: amount * 100, // ₹ → paise
+      amount: amount * 100,
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     });
 
-    return res.json(order);
+    await Payment.create({
+      userId,
+      planId,
+      billingCycle,
+      razorpayOrderId: order.id,
+      amount: amount * 100,
+      status: "created",
+    });
+
+    res.json(order);
   } catch (err) {
-    console.error("Create order error:", err);
-    return res.status(500).json({ error: "Order creation failed" });
+    console.error(err);
+    res.status(500).json({ error: "Order creation failed" });
   }
 });
 
-/**
- * VERIFY PAYMENT
- */
-router.post("/verify-payment", (req, res) => {
+/* ===============================
+   VERIFY PAYMENT
+=============================== */
+
+router.post("/verify-payment", async (req, res) => {
   try {
     const {
       razorpay_order_id,
@@ -45,61 +92,71 @@ router.post("/verify-payment", (req, res) => {
       razorpay_signature,
     } = req.body;
 
-    if (
-      !razorpay_order_id ||
-      !razorpay_payment_id ||
-      !razorpay_signature
-    ) {
-      return res.status(400).json({ success: false });
-    }
-
-    const body =
-      razorpay_order_id + "|" + razorpay_payment_id;
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest("hex");
 
-    if (expectedSignature === razorpay_signature) {
-      return res.json({ success: true });
-    } else {
+    if (expectedSignature !== razorpay_signature) {
       return res.json({ success: false });
     }
+
+    const paymentDoc = await Payment.findOne({
+      razorpayOrderId: razorpay_order_id,
+    });
+
+    if (!paymentDoc) {
+      return res.status(404).json({ success: false });
+    }
+
+    paymentDoc.status = "captured";
+    paymentDoc.razorpayPaymentId = razorpay_payment_id;
+    paymentDoc.razorpaySignature = razorpay_signature;
+    await paymentDoc.save();
+
+    const now = new Date();
+    let endDate = new Date();
+
+    if (paymentDoc.billingCycle === "monthly") {
+      endDate.setMonth(endDate.getMonth() + 1);
+    } else {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    }
+
+    const subscription = await Subscription.findOneAndUpdate(
+      { userId: paymentDoc.userId },
+      {
+        userId: paymentDoc.userId,
+        planId: paymentDoc.planId,
+        billingCycle: paymentDoc.billingCycle,
+        status: "active",
+        startDate: now,
+        endDate,
+      },
+      { upsert: true, new: true }
+    );
+
+    paymentDoc.subscriptionId = subscription._id;
+    await paymentDoc.save();
+
+    res.json({ success: true });
   } catch (err) {
-    console.error("Verify error:", err);
-    return res.status(500).json({ success: false });
+    console.error(err);
+    res.status(500).json({ success: false });
   }
 });
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const signature = req.headers["x-razorpay-signature"];
-    const body = req.body.toString();
 
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(body)
-      .digest("hex");
+/* ===============================
+   DEBUG ROUTE
+=============================== */
 
-    if (signature !== expectedSignature) {
-      console.error("❌ Invalid webhook signature");
-      return res.status(400).send("Invalid signature");
-    }
+router.get("/debug", async (req, res) => {
+  const plans = await Plan.find();
+  const payments = await Payment.find();
+  const subs = await Subscription.find();
+  res.json({ plans, payments, subs });
+});
 
-    const event = JSON.parse(body);
-
-    console.log("✅ Razorpay Webhook Event:", event.event);
-
-    if (event.event === "payment.captured") {
-      const payment = event.payload.payment.entity;
-      console.log("💰 PAYMENT SUCCESS:", payment.id, payment.amount);
-      // 👉 SAVE TO DB / ACTIVATE SUBSCRIPTION HERE
-    }
-
-    res.json({ status: "ok" });
-  }
-);
 export default router;

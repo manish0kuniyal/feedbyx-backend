@@ -1,6 +1,6 @@
 import express from "express";
 import User from "../models/user.js";
-import { saveUser } from "../controllers/authController.js";
+import { saveUser } from "../controllers/authController/googleauthController.js";
 
 const router = express.Router();
 router.post("/save",saveUser)

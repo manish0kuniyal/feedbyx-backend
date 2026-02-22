@@ -5,8 +5,10 @@ import authRouter from "./routes/auth.js"
 import feedbackRouter from "./routes/feedback.js";
 import formsRouter from "./routes/form.js";
 import usersRouter from "./routes/user.js";
+import paymentRouter from "./routes/payment.js"
 import cookieParser from 'cookie-parser';
 import connectDB from "./utils/dbconnect.js"
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -79,6 +81,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/forms", formsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/payment", paymentRouter);
+
 
 app.get('/_debug', (req, res) => {
   res.json({
@@ -90,7 +94,6 @@ app.get('/_debug', (req, res) => {
   });
 });
 
-// 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
     message: 'Express 404',
@@ -98,7 +101,6 @@ app.use((req, res, next) => {
   });
 });
 
-// Error handler - MUST BE LAST, after all routes
 app.use((err, req, res, next) => {
   console.error("Error handler caught:", err);
   

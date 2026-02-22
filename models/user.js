@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-const userSchema=new mongoose.Schema({
-     userId: {
+
+const userSchema = new mongoose.Schema({
+  userId: {
     type: String,
     required: true,
     unique: true,
@@ -14,13 +15,18 @@ const userSchema=new mongoose.Schema({
     required: true,
     unique: true,
   },
+  password: {
+    type: String, 
+  },
   provider: {
     type: String,
-    default: 'google',
-  }, createdAt: {
+    enum: ["google", "local"],
+    default: "google",
+  },
+  createdAt: {
     type: Date,
     default: Date.now,
   }
-})
+});
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+export default mongoose.models.User || mongoose.model("User", userSchema);
