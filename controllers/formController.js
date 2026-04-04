@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import Form from "../models/form.js";
 import Feedback from "../models/feedback.js";
+import { getUserPlan } from "../utils/getUserPlan.js";
 
 async function findFormByIdentifier(idOrCustom) {
   if (!idOrCustom) return null;
@@ -22,6 +23,13 @@ export const createForm = async (req, res) => {
     const { name, uid, fields } = req.body;
     if (!name || !uid || !fields || !Array.isArray(fields) || fields.length === 0) {
       return res.status(400).json({ error: "Name, UID, and at least one field are required." });
+    }
+
+    const plan = await getUserPlan(uid);
+    const existingFormsCount = await Form.countDocuments({ userId: uid });
+
+    if (existingFormsCount >= plan.features.maxForms) {
+      return res.status(403).json({ error: "Form limit reached. Upgrade your plan." });
     }
 
     const formId = uuidv4();

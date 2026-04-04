@@ -26,39 +26,35 @@ function initDB() {
 }
 
 initDB();
+const app = express()
 
-const app = express();
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://dev.feedbyx.com",
+  "https://main.d3jt2wtqx08knj.amplifyapp.com",
+]
 
-app.use(express.json());
-app.use(cookieParser());
+app.use(express.json())
+app.use(cookieParser())
 
-// const ALLOWED_ORIGINS = [
-//   "http://localhost:3000",
-//   "http://localhost:5173",
-//   "https://dev.feedbyx.com",
-//   "https://main.d3jt2wtqx08knj.amplifyapp.com",
-// ];
-
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "http://localhost:5173","https://dev.feedbyx.com","https://main.d3jt2wtqx08knj.amplifyapp.com"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// Debug logging
 app.use((req, res, next) => {
-  console.log("---- INCOMING REQUEST ----");
-  console.log("method:", req.method);
-  console.log("url:", req.originalUrl);
-  console.log("origin:", req.headers.origin);
-  console.log("cookies:", req.headers.cookie || "NO COOKIES");
-  console.log("--------------------------");
-  next();
-});
+  const origin = req.headers.origin
 
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin)
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end()
+  }
+
+  next()
+})
 const port = 5000;
 
 // Stage handling

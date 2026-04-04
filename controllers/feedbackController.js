@@ -1,6 +1,7 @@
 import Feedback from "../models/feedback.js";
 import Form from "../models/form.js";
 import axios from "axios";
+import { getUserPlan } from "../utils/getUserPlan.js";
 
 async function resolveIpToLabel(ip) {
   if (!ip) return null;
@@ -12,9 +13,7 @@ async function resolveIpToLabel(ip) {
       const parts = [d.city, d.regionName, d.country].filter(Boolean);
       return parts.join(", ") || "Unknown";
     }
-  } catch (err) {
-    console.warn("resolveIpToLabel failed:", err?.message || err);
-  }
+  } catch {}
   return "Unknown";
 }
 
@@ -22,10 +21,7 @@ export const saveFeedback = async (req, res) => {
   try {
     const { formId, formName, responses, metadata } = req.body;
     if (!formId || !formName || !responses) {
-      return res.status(400).json({
-        success: false,
-        error: "formId, formName and responses are required",
-      });
+      return res.status(400).json({ success: false, error: "formId, formName and responses are required" });
     }
 
     const ip =
@@ -36,6 +32,19 @@ export const saveFeedback = async (req, res) => {
       req.socket?.remoteAddress ||
       req.ip ||
       "";
+
+    const form = await Form.findOne({ customId: formId });
+    if (!form) return res.status(404).json({ success: false, error: "Form not found" });
+    if (form.paused) return res.status(403).json({ success: false, error: "Form is paused" });
+
+    const plan = await getUserPlan(form.userId);
+
+    if (form.feedbackCount >= plan.features.maxResponsesPerForm) {
+      return res.status(403).json({
+        success: false,
+        error: "Response limit reached. Upgrade your plan.",
+      });
+    }
 
     const safeMeta = {
       utm: metadata?.utm || {},
@@ -52,30 +61,6 @@ export const saveFeedback = async (req, res) => {
 
     const timeOnPage = Number(metadata?.timeOnPage || 0);
 
-    let form = await Form.findOne({ customId: formId }).lean();
-    if (!form) {
-      const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(formId));
-      if (isObjectId) {
-        try {
-          form = await Form.findById(formId).lean();
-        } catch {}
-      }
-    }
-
-    if (!form) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Form not found" });
-    }
-
-    if (form.paused) {
-      return res.status(403).json({
-        success: false,
-        error:
-          "This form is no longer accepting responses. Please contact the administrator.",
-      });
-    }
-
     const newFeedback = await Feedback.create({
       formId,
       formName,
@@ -87,55 +72,45 @@ export const saveFeedback = async (req, res) => {
 
     await Form.updateOne(
       { _id: form._id },
-      {
-        $inc: {
-          feedbackCount: 1,
-          totalTimeSpent: timeOnPage,
-        },
-      }
+      { $inc: { feedbackCount: 1, totalTimeSpent: timeOnPage } }
     );
 
     return res.status(201).json({ success: true, data: newFeedback });
   } catch (err) {
-    console.error("Feedback save error:", err);
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal server error" });
+    return res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
-
 export const getFeedbacks = async (req, res) => {
   try {
-    const { uid, query } = req.query;
-    let feedbacks = [];
+    const { uid } = req.query;
+    if (!uid) return res.json({ feedbacksByForm: {} });
 
-    if (uid) {
-      const userForms = await Form.find({ userId: uid }).lean();
-      const formIds = userForms.map((f) => f.customId);
-      feedbacks = await Feedback.find({ formId: { $in: formIds } }).lean();
-    } else if (query) {
-      feedbacks = await Feedback.find({
-        $or: [
-          { "responses.name": { $regex: new RegExp(query, "i") } },
-          { "responses.email": { $regex: new RegExp(query, "i") } },
-        ],
-      }).lean();
-    } else {
-      return res.json({ feedbacksByForm: {} });
-    }
+    const plan = await getUserPlan(uid);
+
+    const userForms = await Form.find({ userId: uid }).lean();
+    const formIds = userForms.map((f) => f.customId);
+
+    const feedbacks = await Feedback.find({
+      formId: { $in: formIds },
+    }).lean();
 
     const feedbacksByForm = {};
+
     feedbacks.forEach((fb) => {
       const id = fb.formId.toString();
       if (!feedbacksByForm[id]) feedbacksByForm[id] = [];
       feedbacksByForm[id].push(fb);
     });
 
-    return res.json({ success: true, feedbacksByForm });
+    return res.json({
+      success: true,
+      feedbacksByForm,
+      featureAccess: {
+        analyticsLocation: plan.features.analyticsLocation,
+        analyticsAdvanced: plan.features.analyticsAdvanced,
+      },
+    });
   } catch (err) {
-    console.error("Get feedbacks error:", err);
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal server error" });
+    return res.status(500).json({ success: false, error: "Internal server error" });
   }
 };

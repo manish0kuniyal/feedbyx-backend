@@ -15,27 +15,59 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-
 router.get("/seed", async (req, res) => {
-  const existing = await Plan.find();
-  if (existing.length > 0) {
-    return res.json({ message: "Plans already exist", plans: existing });
-  }
+  try {
+    let freePlan = await Plan.findOne({ name: "Free" });
+    let proPlan = await Plan.findOne({ name: "Pro" });
 
-  const newPlan = await Plan.create({
-    name: "Pro",
-    monthlyPrice: 5,
-    yearlyPrice: 50,
-    features: {
-      analyticsLocation: true,
-      aiEnabled: true
+    if (!freePlan) {
+      freePlan = await Plan.create({
+        name: "Free",
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        features: {
+          maxForms: 2,
+          maxResponsesPerForm: 20,
+          analyticsBasic: true,
+          analyticsLocation: false,
+          analyticsAdvanced: false,
+          aiEnabled: false,
+          aiMonthlyLimit: 0,
+          exportCSV: false,
+        },
+      });
     }
-  });
 
-  res.json(newPlan);
+    if (!proPlan) {
+      proPlan = await Plan.create({
+        name: "Pro",
+        monthlyPrice: 5,
+        yearlyPrice: 50,
+        features: {
+          maxForms: 1000,
+          maxResponsesPerForm: 100000,
+          analyticsBasic: true,
+          analyticsLocation: true,
+          analyticsAdvanced: true,
+          aiEnabled: true,
+          aiMonthlyLimit: 1000,
+          exportCSV: true,
+        },
+      });
+    }
+
+    const plans = await Plan.find();
+
+    res.json({
+      message: "Plans seeded successfully",
+      plans
+    });
+
+  } catch (err) {
+    console.error("Seed error:", err);
+    res.status(500).json({ error: "Seed failed" });
+  }
 });
-
-
 /* ===============================
    CREATE ORDER
 =============================== */

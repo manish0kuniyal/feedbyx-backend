@@ -1,7 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import User from "../../models/user.js";
-
+import { getUserPlan } from "../../utils/getUserPlan.js";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req, res) => {
@@ -104,5 +104,25 @@ export const saveUser = async (req, res) => {
   } catch (error) {
     console.error("Error saving user:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+export const getCurrentPlan = async (req, res) => {
+  try {
+    const { uid } = req.query;
+
+    if (!uid) {
+      return res.status(400).json({ error: "User ID required" });
+    }
+
+    const plan = await getUserPlan(uid);
+
+    res.json({
+      name: plan.name,
+      features: plan.features
+    });
+
+  } catch (error) {
+    console.error("Plan fetch error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
